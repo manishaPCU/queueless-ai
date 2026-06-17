@@ -16,31 +16,34 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-  fetchQueue();
-  socket.emit('joinQueue', org.id);
-  
-  socket.on('queueUpdate', () => {
     fetchQueue();
-  });
-
-  socket.on('connect', () => {
     socket.emit('joinQueue', org.id);
-  });
 
-  return () => {
-    socket.off('queueUpdate');
-    socket.off('connect');
-  };
-}, []);
+    socket.on('queueUpdate', () => {
+      fetchQueue();
+    });
+
+    socket.on('connect', () => {
+      socket.emit('joinQueue', org.id);
+    });
+
+    return () => {
+      socket.off('queueUpdate');
+      socket.off('connect');
+    };
+  }, []);
 
   const callNext = async () => {
-    await axios.post('http://localhost:5000/api/token/next',
-      { orgId: org.id },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    fetchQueue();
+    try {
+      await axios.post('http://localhost:5000/api/token/next',
+        { orgId: org.id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchQueue();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error calling next token');
+    }
   };
-
   const markAbsent = async (tokenId) => {
     await axios.post('http://localhost:5000/api/token/absent',
       { tokenId },

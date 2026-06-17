@@ -1,5 +1,7 @@
 const Token = require('../models/Token');
 const Queue = require('../models/Queue');
+const twilio = require('twilio');
+const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 const generateToken = async (req, res) => {
   try {
@@ -42,8 +44,12 @@ const callNextToken = async (req, res) => {
     const queue = await Queue.findOne({ organisation: orgId, date: today });
     if (!queue) return res.status(404).json({ message: 'Queue not found' });
 
-    await Token.findOneAndUpdate(
-      { organisation: orgId, tokenNumber: queue.currentToken, status: 'serving' },
+    if (queue.currentToken >= queue.lastTokenIssued) {
+      return res.status(400).json({ message: 'No more tokens in queue' });
+    }
+
+    await Token.updateMany(
+      { organisation: orgId, tokenNumber: { $lte: queue.currentToken }, status: { $in: ['waiting', 'serving'] } },
       { status: 'completed' }
     );
 
@@ -54,6 +60,20 @@ const callNextToken = async (req, res) => {
       { organisation: orgId, tokenNumber: queue.currentToken },
       { status: 'serving' }
     );
+
+    const upcomingToken = await Token.findOne({
+      organisation: orgId,
+      tokenNumber: queue.currentToken + 1,
+      status: 'waiting'
+    });
+
+    if (upcomingToken) {
+      const waitTime = 1 * queue.avgServiceTime;
+      await sendWhatsAppNotification(
+        upcomingToken.phoneNumber,
+        `Your turn is approaching! You are next in queue at the hospital. Estimated wait: ${waitTime} minutes.`
+      );
+    }
 
     req.app.get('io').to(orgId).emit('queueUpdate', {
       currentToken: queue.currentToken,
@@ -87,5 +107,17 @@ const getQueueStatus = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+const sendWhatsAppNotification = async (phoneNumber, message) => {
+  try {
+    await client.messages.create({
+      from: process.env.TWILIO_WHATSAPP_NUMBER,
+      to: `whatsapp:+91${phoneNumber}`,
+      body: message
+    });
+    console.log(`WhatsApp sent to ${phoneNumber}`);
+  } catch (err) {
+    console.error('WhatsApp error:', err.message);
+  }
+};
 
-module.exports = { generateToken, callNextToken, markAbsent, getQueueStatus };
+module.exports = { generateToken, callNextToken, markAbsent, getQueueStatus, sendWhatsAppNotification };
