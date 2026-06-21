@@ -151,4 +151,27 @@ const getQueueStatus = async (req, res) => {
   }
 };
 
-module.exports = { generateToken, callNextToken, markAbsent, getQueueStatus };
+const getPeakHours = async (req, res) => {
+  try {
+    const { orgId } = req.params;
+    
+    const tokens = await Token.find({ organisation: orgId });
+    
+    const hourCounts = Array(24).fill(0);
+    tokens.forEach(token => {
+      const hour = new Date(token.createdAt).getHours();
+      hourCounts[hour]++;
+    });
+
+    const peakData = hourCounts.map((count, hour) => ({
+      hour: `${hour}:00`,
+      tokens: count
+    })).filter(h => h.tokens > 0);
+
+    res.json({ peakData });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { generateToken, callNextToken, markAbsent, getQueueStatus, getPeakHours };

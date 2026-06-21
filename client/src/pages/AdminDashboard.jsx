@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
 import socket from '../socket';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function AdminDashboard() {
   const [queue, setQueue] = useState(null);
   const [tokens, setTokens] = useState([]);
   const [avgTime, setAvgTime] = useState(8);
+  const [peakData, setPeakData] = useState([]);
   const org = JSON.parse(localStorage.getItem('org') || '{}');
   const token = localStorage.getItem('token');
 
@@ -15,9 +17,21 @@ export default function AdminDashboard() {
     setQueue(data.queue);
     setTokens(data.waitingTokens);
   };
+  const fetchPeakHours = async () => {
+    try {
+      const { data } = await axios.get(
+        `http://localhost:5000/api/token/peak/${org.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setPeakData(data.peakData);
+    } catch (err) {
+      console.error('Peak hours error:', err);
+    }
+  };
 
   useEffect(() => {
     fetchQueue();
+    fetchPeakHours();
     socket.emit('joinQueue', org.id);
 
     socket.on('queueUpdate', () => {
@@ -63,6 +77,7 @@ export default function AdminDashboard() {
       alert('Failed to save settings');
     }
   };
+  
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -106,6 +121,21 @@ export default function AdminDashboard() {
               Save Settings
             </button>
           </div>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm">
+          <h2 className="text-xl font-bold mb-4">Peak Hours</h2>
+          {peakData.length === 0 ? (
+            <p className="text-gray-400">Not enough data yet</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={peakData}>
+                <XAxis dataKey="hour" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="tokens" fill="#2563eb" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm">
           <h2 className="text-xl font-bold mb-4">Your QR Code</h2>
