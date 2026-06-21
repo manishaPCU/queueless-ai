@@ -26,13 +26,23 @@ export default function CustomerToken() {
 
   const getToken = async () => {
     if (!phone || phone.length < 10) return alert('Enter valid phone number');
-    try {
-      const { data } = await axios.post('http://localhost:5000/api/token/generate', { orgId, phoneNumber: phone });
-      setTokenData(data);
-      setSubmitted(true);
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to get token');
-    }
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      try {
+        const { data } = await axios.post('http://localhost:5000/api/token/generate', {
+          orgId,
+          phoneNumber: phone,
+          customerLat: position.coords.latitude,
+          customerLng: position.coords.longitude
+        });
+        setTokenData(data);
+        setSubmitted(true);
+      } catch (err) {
+        alert(err.response?.data?.message || 'Failed to get token');
+      }
+    }, () => {
+      alert('Please allow location access for departure time calculation');
+    });
   };
 
   if (!submitted) {
@@ -66,6 +76,20 @@ export default function CustomerToken() {
           <div className="bg-gray-50 p-4 rounded-lg">
             <p className="text-gray-500 text-sm">Est. Wait</p>
             <p className="text-2xl font-bold text-gray-900">{tokenData?.estimatedWait} min</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <p className="text-gray-500 text-sm">Position</p>
+            <p className="text-2xl font-bold text-gray-900">{tokenData?.position}</p>
+          </div>
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <p className="text-gray-500 text-sm">Est. Wait</p>
+            <p className="text-2xl font-bold text-gray-900">{tokenData?.estimatedWait} min</p>
+          </div>
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <p className="text-gray-500 text-sm">Leave By</p>
+            <p className="text-2xl font-bold text-green-600">{tokenData?.departureTime || 'Now'}</p>
           </div>
         </div>
         <p className="text-gray-400 text-sm">You will be notified when your turn is near</p>
