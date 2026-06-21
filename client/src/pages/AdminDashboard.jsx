@@ -6,6 +6,7 @@ import socket from '../socket';
 export default function AdminDashboard() {
   const [queue, setQueue] = useState(null);
   const [tokens, setTokens] = useState([]);
+  const [avgTime, setAvgTime] = useState(8);
   const org = JSON.parse(localStorage.getItem('org') || '{}');
   const token = localStorage.getItem('token');
 
@@ -51,6 +52,17 @@ export default function AdminDashboard() {
     );
     fetchQueue();
   };
+  const updateSettings = async () => {
+    try {
+      await axios.put('http://localhost:5000/api/auth/settings',
+        { avgServiceTime: avgTime },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert('Settings saved');
+    } catch (err) {
+      alert('Failed to save settings');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -73,6 +85,28 @@ export default function AdminDashboard() {
         <button onClick={callNext} className="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-700">
           Call Next Token
         </button>
+        <div className="bg-white p-6 rounded-xl shadow-sm">
+          <h2 className="text-xl font-bold mb-4">Queue Settings</h2>
+          <div className="flex items-center gap-4">
+            <div>
+              <p className="text-gray-500 text-sm mb-1">Average time per patient (minutes)</p>
+              <input
+                type="number"
+                value={avgTime}
+                onChange={e => setAvgTime(e.target.value)}
+                className="border p-2 rounded-lg w-24 text-center text-lg font-bold"
+                min="1"
+                max="60"
+              />
+            </div>
+            <button
+              onClick={updateSettings}
+              className="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 mt-4"
+            >
+              Save Settings
+            </button>
+          </div>
+        </div>
         <div className="bg-white p-6 rounded-xl shadow-sm">
           <h2 className="text-xl font-bold mb-4">Your QR Code</h2>
           {org.qrCode && <img src={org.qrCode} alt="QR Code" className="w-48 h-48" />}

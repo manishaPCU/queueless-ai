@@ -43,5 +43,22 @@ const login = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+const updateSettings = async (req, res) => {
+  try {
+    const { avgServiceTime } = req.body;
+    const today = new Date().toISOString().split('T')[0];
+    
+    await Queue.findOneAndUpdate(
+      { organisation: req.org.id, date: today },
+      { avgServiceTime: parseInt(avgServiceTime) },
+      { new: true }
+    );
 
-module.exports = { signup, login };
+    res.json({ message: 'Settings updated' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { signup, login, updateSettings };
+
